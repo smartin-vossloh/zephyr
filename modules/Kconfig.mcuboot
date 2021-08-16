@@ -35,6 +35,12 @@ config BOOTLOADER_MCUBOOT
 
 if BOOTLOADER_MCUBOOT
 
+config MCUBOOT_BOOT_MAX_ALIGN
+	int "Flash write alignment in bytes"
+	default 8
+	help
+	  Bytes alignment when performing writes into flash memory.
+
 config MCUBOOT_CMAKE_WEST_SIGN_PARAMS
 	string "Extra parameters to west sign"
 	default "--quiet"
