@@ -84,7 +84,7 @@ static void _test_write_confirm_n(uint8_t fa_id, int img_index)
 {
 	const uint32_t img_magic[4] = BOOT_MAGIC_VALUES;
 	uint32_t readout[ARRAY_SIZE(img_magic)];
-	uint8_t flag[BOOT_MAX_ALIGN];
+	uint8_t flag[CONFIG_MCUBOOT_BOOT_MAX_ALIGN];
 	const struct flash_area *fa;
 	int ret;
 

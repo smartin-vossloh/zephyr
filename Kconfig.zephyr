@@ -709,6 +709,12 @@ config BOOTLOADER_MCUBOOT
 
 if BOOTLOADER_MCUBOOT
 
+config MCUBOOT_BOOT_MAX_ALIGN
+	int "Flash write alignment in bytes"
+	default 8
+	help
+	  Bytes alignment when performing writes into flash memory.
+
 config MCUBOOT_SIGNATURE_KEY_FILE
 	string "Path to the mcuboot signing key file"
 	default ""
