@@ -65,9 +65,17 @@ extern "C" {
 #define BOOT_IMG_VER_STRLEN_MAX 25  /* 255.255.65535.4294967295\0 */
 
 /* Trailer: */
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+#define BOOT_MAX_ALIGN		32
+#else
 #define BOOT_MAX_ALIGN		8
+#endif
 #ifndef BOOT_MAGIC_SZ
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+#define BOOT_MAGIC_SZ		32
+#else
 #define BOOT_MAGIC_SZ		16
+#endif
 #endif
 
 #define BOOT_TRAILER_IMG_STATUS_OFFS(bank_area) ((bank_area)->fa_size -\
