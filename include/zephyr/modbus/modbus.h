@@ -210,6 +210,21 @@ int modbus_write_holding_reg(const int iface,
 			     const uint16_t reg_val);
 
 /**
+ * @brief Read exception status register (FC07)
+ *
+ * @param iface      Modbus interface index
+ * @param unit_id    Modbus unit ID of the server
+ * @param status     Pointer to to a byte that will receive the exception
+ *                   status from the server
+ *
+ * @retval           0 If the function was successful
+ */
+int modbus_read_exception_status(const int iface,
+				 const uint8_t unit_id,
+				 uint8_t *const status);
+
+
+/**
  * @brief Read diagnostic (FC08)
  *
  * Sends a Modbus message to perform a diagnostic function of a server unit.

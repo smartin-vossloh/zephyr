@@ -271,6 +271,10 @@ static int mbc_send_cmd(struct modbus_context *ctx, const uint8_t unit_id,
 		err = mbc_validate_rd_response(ctx, unit_id, fc, data);
 		break;
 
+	case MODBUS_FC07_EXCEPTION_STATUS_RD:
+		*(uint8_t *)data = ctx->rx_adu.data[0];
+		break;
+
 	case MODBUS_FC08_DIAGNOSTICS:
 		err = mbc_validate_fc08_response(ctx, unit_id, data);
 		break;
@@ -468,6 +472,28 @@ int modbus_write_holding_reg(const int iface,
 	sys_put_be16(reg_val, &ctx->tx_adu.data[2]);
 
 	err = mbc_send_cmd(ctx, unit_id, MODBUS_FC06_HOLDING_REG_WR, NULL);
+	k_mutex_unlock(&ctx->iface_lock);
+
+	return err;
+}
+
+int modbus_read_exception_status(const int iface,
+				 const uint8_t unit_id,
+				 uint8_t *const status)
+{
+	struct modbus_context *ctx = modbus_get_context(iface);
+	int err;
+
+	if (ctx == NULL) {
+		return -ENODEV;
+	}
+
+	k_mutex_lock(&ctx->iface_lock, K_FOREVER);
+
+	ctx->tx_adu.length = 0;
+	err = mbc_send_cmd(ctx, unit_id,
+			   MODBUS_FC07_EXCEPTION_STATUS_RD, status);
+
 	k_mutex_unlock(&ctx->iface_lock);
 
 	return err;
