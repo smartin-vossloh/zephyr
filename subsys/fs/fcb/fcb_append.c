@@ -51,7 +51,7 @@ fcb_append_to_scratch(struct fcb *fcb)
 		return rc;
 	}
 	fcb->f_active.fe_sector = sector;
-	fcb->f_active.fe_elem_off = sizeof(struct fcb_disk_area);
+	fcb->f_active.fe_elem_off = fcb->f_hdr_len;
 	fcb->f_active_id++;
 	return 0;
 }
@@ -63,7 +63,7 @@ fcb_append(struct fcb *fcb, uint16_t len, struct fcb_entry *append_loc)
 	struct fcb_entry *active;
 	int cnt;
 	int rc;
-	uint8_t tmp_str[8];
+	uint8_t tmp_str[CONFIG_FCB_MAX_ALIGN];
 
 	cnt = fcb_put_len(fcb, tmp_str, len);
 	if (cnt < 0) {
@@ -82,7 +82,7 @@ fcb_append(struct fcb *fcb, uint16_t len, struct fcb_entry *append_loc)
 	if (active->fe_elem_off + len + cnt > active->fe_sector->fs_size) {
 		sector = fcb_new_sector(fcb, fcb->f_scratch_cnt);
 		if (!sector || (sector->fs_size <
-			sizeof(struct fcb_disk_area) + len + cnt)) {
+			fcb->f_hdr_len + len + cnt)) {
 			rc = -ENOSPC;
 			goto err;
 		}
@@ -91,7 +91,7 @@ fcb_append(struct fcb *fcb, uint16_t len, struct fcb_entry *append_loc)
 			goto err;
 		}
 		fcb->f_active.fe_sector = sector;
-		fcb->f_active.fe_elem_off = sizeof(struct fcb_disk_area);
+		fcb->f_active.fe_elem_off = fcb->f_hdr_len;
 		fcb->f_active_id++;
 	}
 
