@@ -32,7 +32,7 @@ static const struct settings_store_itf settings_fcb_itf = {
 	.csi_save = settings_fcb_save,
 };
 
-int settings_fcb_src(struct settings_fcb *cf)
+int settings_fcb_src(struct settings_fcb *cf, int f_area_id)
 {
 	int rc;
 
@@ -40,7 +40,7 @@ int settings_fcb_src(struct settings_fcb *cf)
 	cf->cf_fcb.f_scratch_cnt = 1;
 
 	while (1) {
-		rc = fcb_init(FLASH_AREA_ID(storage), &cf->cf_fcb);
+		rc = fcb_init(f_area_id, &cf->cf_fcb);
 		if (rc) {
 			return -EINVAL;
 		}
@@ -387,10 +387,12 @@ int settings_backend_init(void)
 	uint32_t cnt = sizeof(settings_fcb_area) /
 		    sizeof(settings_fcb_area[0]);
 	int rc;
+	int f_area_id;
 	const struct flash_area *fap;
 
-	rc = flash_area_get_sectors(FLASH_AREA_ID(storage), &cnt,
-				    settings_fcb_area);
+	f_area_id = settings_fcb_get_flash_area();
+
+	rc = flash_area_get_sectors(f_area_id, &cnt, settings_fcb_area);
 	if (rc == -ENODEV) {
 		return rc;
 	} else if (rc != 0 && rc != -ENOMEM) {
@@ -399,10 +401,10 @@ int settings_backend_init(void)
 
 	config_init_settings_fcb.cf_fcb.f_sector_cnt = cnt;
 
-	rc = settings_fcb_src(&config_init_settings_fcb);
+	rc = settings_fcb_src(&config_init_settings_fcb, f_area_id);
 
 	if (rc != 0) {
-		rc = flash_area_open(FLASH_AREA_ID(storage), &fap);
+		rc = flash_area_open(f_area_id, &fap);
 
 		if (rc == 0) {
 			rc = flash_area_erase(fap, 0, fap->fa_size);
@@ -412,7 +414,8 @@ int settings_backend_init(void)
 		if (rc != 0) {
 			k_panic();
 		} else {
-			rc = settings_fcb_src(&config_init_settings_fcb);
+			rc = settings_fcb_src(&config_init_settings_fcb,
+					      f_area_id);
 		}
 	}
 
@@ -430,3 +433,10 @@ int settings_backend_init(void)
 
 	return rc;
 }
+
+#if FLASH_AREA_LABEL_EXISTS(storage)
+__weak int settings_fcb_get_flash_area(void)
+{
+	return FLASH_AREA_ID(storage);
+}
+#endif
