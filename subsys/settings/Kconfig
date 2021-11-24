@@ -28,6 +28,15 @@ config SETTINGS_DYNAMIC_HANDLERS
 	help
 	  Enables the use of dynamic settings handlers
 
+config SETTINGS_IO_BUF_SIZE
+	int "I/O buffer size"
+	depends on SETTINGS
+	default 16
+	help
+	  Define the size, in bytes, of the buffer used by settings subsystem to
+	  read and write to the storage medium. This value must be >= 2 bytes
+	  and a multiple of the storage medium read and write block size.
+
 # Hidden option to enable encoding length into settings entry
 config SETTINGS_ENCODE_LEN
 	depends on SETTINGS
