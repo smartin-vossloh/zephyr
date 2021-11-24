@@ -28,9 +28,11 @@ int settings_line_write(const char *name, const char *value, size_t val_len,
 {
 	size_t w_size, rem, add;
 
+	/* write buff, must be aligned either to minimal */
+	/* base64 encoding size and write-block-size */
+	char w_buf[CONFIG_SETTINGS_IO_BUF_SIZE];
+
 	bool done;
-	char w_buf[16]; /* write buff, must be aligned either to minimal */
-			/* base64 encoding size and write-block-size */
 	int rc;
 	uint8_t wbs = settings_io_cb.rwbs;
 #ifdef CONFIG_SETTINGS_ENCODE_LEN
@@ -181,8 +183,10 @@ static int settings_line_raw_read_until(off_t seek, char *out, size_t len_req,
 				 size_t *len_read, char const *until_char,
 				 void *cb_arg)
 {
+	/* buffer for fit read-block-size requirements */
+	char temp_buf[CONFIG_SETTINGS_IO_BUF_SIZE];
+
 	size_t rem_size, len;
-	char temp_buf[16]; /* buffer for fit read-block-size requirements */
 	size_t exp_size, read_size;
 	uint8_t rbs = settings_io_cb.rwbs;
 	off_t off;
@@ -284,7 +288,7 @@ int settings_line_entry_copy(void *dst_ctx, off_t dst_off, void *src_ctx,
 			     off_t src_off, size_t len)
 {
 	int rc = -EINVAL;
-	char buf[16];
+	char buf[CONFIG_SETTINGS_IO_BUF_SIZE];
 	size_t chunk_size;
 
 	while (len) {
@@ -336,7 +340,7 @@ static int settings_line_cmp(char const *val, size_t val_len,
 {
 	size_t len_read, exp_len;
 	size_t rem;
-	char buf[16];
+	char buf[CONFIG_SETTINGS_IO_BUF_SIZE];
 	int rc = -EINVAL;
 	off_t off = 0;
 
