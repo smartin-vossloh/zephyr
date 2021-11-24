@@ -12,3 +12,16 @@ config FCB
 	depends on FLASH_MAP
 	help
 	  Enable support of Flash Circular Buffer.
+
+if FCB
+
+config FCB_MAX_ALIGN
+	int "Maximum supported write-block alignment"
+	default 8
+	help
+	  Specify the maximum write-block alignment, in bytes, that is
+	  supported by the Flash Circular Buffer implementation. Accessing
+	  through the Flash Circular Buffer subsystem a flash memory with larger
+	  alignment requirement will not be possible.
+
+endif

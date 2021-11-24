@@ -117,6 +117,9 @@ struct fcb {
 	uint16_t f_active_id;
 	/**< Flash location where the newest data is, internal state */
 
+	uint16_t f_hdr_len;
+	/**< Size of header in bytes, aligned to f_align, internal state */
+
 	uint8_t f_align;
 	/**< writes to flash have to aligned to this, internal state */
 

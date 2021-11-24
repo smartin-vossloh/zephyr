@@ -121,6 +121,8 @@ fcb_init(int f_area_id, struct fcb *fcb)
 	if (align == 0U) {
 		return -EINVAL;
 	}
+	fcb->f_align = align;
+	fcb->f_hdr_len = fcb_len_in_flash(fcb, sizeof(struct fcb_disk_area));
 
 	/* Fill last used, first used */
 	for (i = 0; i < fcb->f_sector_cnt; i++) {
@@ -156,10 +158,9 @@ fcb_init(int f_area_id, struct fcb *fcb)
 		}
 		newest = oldest = 0;
 	}
-	fcb->f_align = align;
 	fcb->f_oldest = oldest_sector;
 	fcb->f_active.fe_sector = newest_sector;
-	fcb->f_active.fe_elem_off = sizeof(struct fcb_disk_area);
+	fcb->f_active.fe_elem_off = fcb->f_hdr_len;
 	fcb->f_active_id = newest;
 
 	while (1) {
@@ -196,7 +197,7 @@ int
 fcb_is_empty(struct fcb *fcb)
 {
 	return (fcb->f_active.fe_sector == fcb->f_oldest &&
-	  fcb->f_active.fe_elem_off == sizeof(struct fcb_disk_area));
+	  fcb->f_active.fe_elem_off == fcb->f_hdr_len);
 }
 
 /**
@@ -262,14 +263,22 @@ int
 fcb_sector_hdr_init(struct fcb *fcb, struct flash_sector *sector, uint16_t id)
 {
 	struct fcb_disk_area fda;
+	size_t pad_len;
 	int rc;
+	uint8_t buf[CONFIG_FCB_MAX_ALIGN];
 
 	fda.fd_magic = fcb_flash_magic(fcb);
 	fda.fd_ver = fcb->f_version;
 	fda._pad = fcb->f_erase_value;
 	fda.fd_id = id;
 
-	rc = fcb_flash_write(fcb, sector, 0, &fda, sizeof(fda));
+	__ASSERT_NO_MSG(fcb->f_hdr_len <= sizeof(buf));
+
+	pad_len = fcb->f_hdr_len - sizeof(fda);
+	memcpy(buf, &fda, sizeof(fda));
+	memset(buf + sizeof(fda), fcb->f_erase_value, pad_len);
+
+	rc = fcb_flash_write(fcb, sector, 0, buf, fcb->f_hdr_len);
 	if (rc != 0) {
 		return -EIO;
 	}
