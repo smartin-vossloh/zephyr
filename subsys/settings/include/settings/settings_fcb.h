@@ -20,7 +20,7 @@ struct settings_fcb {
 	struct fcb cf_fcb;
 };
 
-extern int settings_fcb_src(struct settings_fcb *cf, int f_area_id);
+extern int settings_fcb_src(struct settings_fcb *cf);
 extern int settings_fcb_dst(struct settings_fcb *cf);
 void settings_mount_fcb_backend(struct settings_fcb *cf);
 int settings_fcb_get_flash_area(void);
