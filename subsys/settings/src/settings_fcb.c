@@ -32,9 +32,12 @@ static const struct settings_store_itf settings_fcb_itf = {
 	.csi_save = settings_fcb_save,
 };
 
-int settings_fcb_src(struct settings_fcb *cf, int f_area_id)
+int settings_fcb_src(struct settings_fcb *cf)
 {
 	int rc;
+	int f_area_id;
+
+	f_area_id = settings_fcb_get_flash_area();
 
 	cf->cf_fcb.f_version = SETTINGS_FCB_VERS;
 	cf->cf_fcb.f_scratch_cnt = 1;
@@ -401,7 +404,7 @@ int settings_backend_init(void)
 
 	config_init_settings_fcb.cf_fcb.f_sector_cnt = cnt;
 
-	rc = settings_fcb_src(&config_init_settings_fcb, f_area_id);
+	rc = settings_fcb_src(&config_init_settings_fcb);
 
 	if (rc != 0) {
 		rc = flash_area_open(f_area_id, &fap);
@@ -414,8 +417,7 @@ int settings_backend_init(void)
 		if (rc != 0) {
 			k_panic();
 		} else {
-			rc = settings_fcb_src(&config_init_settings_fcb,
-					      f_area_id);
+			rc = settings_fcb_src(&config_init_settings_fcb);
 		}
 	}
 
