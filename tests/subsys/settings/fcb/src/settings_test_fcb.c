@@ -351,7 +351,7 @@ void test_settings_check_target(void)
 	zassert_true(rc == 0, "Can't open storage flash area");
 
 	wbs = flash_area_align(fap);
-	zassert_true(wbs <= 16,
+	zassert_true(wbs <= 32,
 		"Flash driver is not compatible with the settings fcb-backend");
 }
 
