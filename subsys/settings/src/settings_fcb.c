@@ -38,6 +38,11 @@ static const struct settings_store_itf settings_fcb_itf = {
 	.csi_save = settings_fcb_save,
 };
 
+__weak int settings_fcb_get_flash_area(void)
+{
+	return SETTINGS_PARTITION;
+}
+
 int settings_fcb_src(struct settings_fcb *cf)
 {
 	int rc;
@@ -46,7 +51,7 @@ int settings_fcb_src(struct settings_fcb *cf)
 	cf->cf_fcb.f_scratch_cnt = 1;
 
 	while (1) {
-		rc = fcb_init(SETTINGS_PARTITION, &cf->cf_fcb);
+		rc = fcb_init(settings_fcb_get_flash_area(), &cf->cf_fcb);
 		if (rc) {
 			return -EINVAL;
 		}
@@ -395,7 +400,7 @@ int settings_backend_init(void)
 	int rc;
 	const struct flash_area *fap;
 
-	rc = flash_area_get_sectors(SETTINGS_PARTITION, &cnt,
+	rc = flash_area_get_sectors(settings_fcb_get_flash_area(), &cnt,
 				    settings_fcb_area);
 	if (rc == -ENODEV) {
 		return rc;
@@ -408,7 +413,7 @@ int settings_backend_init(void)
 	rc = settings_fcb_src(&config_init_settings_fcb);
 
 	if (rc != 0) {
-		rc = flash_area_open(SETTINGS_PARTITION, &fap);
+		rc = flash_area_open(settings_fcb_get_flash_area(), &fap);
 
 		if (rc == 0) {
 			rc = flash_area_erase(fap, 0, fap->fa_size);
