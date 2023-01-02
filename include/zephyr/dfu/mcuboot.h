@@ -64,14 +64,11 @@ extern "C" {
 
 #define BOOT_IMG_VER_STRLEN_MAX 25  /* 255.255.65535.4294967295\0 */
 
-<<<<<<< HEAD
-=======
 /* Trailer: */
 #ifndef BOOT_MAGIC_SZ
 #define BOOT_MAGIC_SZ		16
 #endif
 
->>>>>>> 646609666d (mcuboot: Adds option to configure write flash alignement)
 #define BOOT_TRAILER_IMG_STATUS_OFFS(bank_area) ((bank_area)->fa_size -\
 						  BOOT_MAGIC_SZ -\
 						  CONFIG_MCUBOOT_BOOT_MAX_ALIGN * 2)
