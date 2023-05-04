@@ -367,6 +367,25 @@ static int qspi_wait_until_ready(const struct device *dev)
 	return ret;
 }
 
+static int flash_stm32_qspi_ulbpr(const struct device *dev)
+{
+	int ret = 0;
+	QSPI_CommandTypeDef cmd = {
+		.Instruction = SPI_NOR_CMD_WREN,
+		.InstructionMode = QSPI_INSTRUCTION_1_LINE,
+	};
+
+	if (IS_ENABLED(DT_INST_PROP(0, requires_ulbpr))) {
+		ret = qspi_send_cmd(dev, &cmd);
+		if (ret == 0) {
+			cmd.Instruction = SPI_NOR_CMD_ULBPR;
+			ret = qspi_send_cmd(dev, &cmd);
+		}
+	}
+
+	return ret;
+}
+
 static int flash_stm32_qspi_write(const struct device *dev, off_t addr,
 				  const void *data, size_t size)
 {
@@ -404,8 +423,8 @@ static int flash_stm32_qspi_write(const struct device *dev, off_t addr,
 	}
 
 	qspi_lock_thread(dev);
-
-	while (size > 0) {
+	ret = flash_stm32_qspi_ulbpr(dev);
+	while ((ret == 0) && (size > 0)) {
 		size_t to_write = size;
 
 		/* Don't write more than a page. */
