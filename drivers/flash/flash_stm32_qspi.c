@@ -413,7 +413,7 @@ static int flash_stm32_qspi_write(const struct device *dev, off_t addr,
 			return ret;
 		}
 	}
-
+	cmd_pp.Instruction = SPI_NOR_CMD_PP_1_1_4;
 	qspi_lock_thread(dev);
 	ret = flash_stm32_qspi_ulbpr(dev);
 	while ((ret == 0) && (size > 0)) {
