@@ -276,7 +276,7 @@ int settings_line_entry_copy(void *dst_ctx, off_t dst_off, void *src_ctx,
 			     off_t src_off, size_t len)
 {
 	int rc = -EINVAL;
-	char buf[16];
+	char buf[32];
 	size_t chunk_size;
 
 	while (len) {
@@ -328,7 +328,7 @@ static int settings_line_cmp(char const *val, size_t val_len,
 {
 	size_t len_read, exp_len;
 	size_t rem;
-	char buf[16];
+	char buf[32];
 	int rc = -EINVAL;
 	off_t off = 0;
 
