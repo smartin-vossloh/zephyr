@@ -31,6 +31,9 @@ manifest:
     - name: chre
       revision: b7955c27e50485b7dafdc3888d7d6afdc2ac6d96
       path: modules/lib/chre
+    - name: civetweb
+      revision: 094aeb41bb93e9199d24d665ee43e9e05d6d7b1c
+      path: modules/lib/civetweb
     - name: cmsis
       revision: 74981bf893e8b10931464b9945e2143d99a3f0a3
       path: modules/hal/cmsis
