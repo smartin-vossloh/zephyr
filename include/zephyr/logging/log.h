@@ -453,6 +453,12 @@ void z_log_vprintk(const char *fmt, va_list ap);
 #define LOG_HEXDUMP_INF(...) (void) 0
 #endif
 
+/** @brief Deprecated. */
+static inline char *log_strdup(const char *str)
+{
+	return (char *)str;
+}
+
 /**
  * @}
  */
