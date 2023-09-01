@@ -21,11 +21,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(i2s_ll_stm32);
 
-/* FIXME change to
- * #if __DCACHE_PRESENT == 1
- * when cache support is added
- */
-#if 0
+#if __DCACHE_PRESENT == 1
 #define DCACHE_INVALIDATE(addr, size) \
 	SCB_InvalidateDCache_by_Addr((uint32_t *)addr, size)
 #define DCACHE_CLEAN(addr, size) \
