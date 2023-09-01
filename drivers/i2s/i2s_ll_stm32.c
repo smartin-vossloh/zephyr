@@ -128,7 +128,11 @@ static int i2s_stm32_set_clock(const struct device *dev,
 			       uint32_t bit_clk_freq)
 {
 	const struct i2s_stm32_cfg *cfg = dev->config;
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+	uint32_t pll_src = LL_RCC_PLL_GetSource();
+#else
 	uint32_t pll_src = LL_RCC_PLL_GetMainSource();
+#endif
 	int freq_in;
 	uint8_t i2s_div, i2s_odd;
 
@@ -165,7 +169,12 @@ static int i2s_stm32_set_clock(const struct device *dev,
 #endif /* CONFIG_I2S_STM32_USE_PLLI2S_ENABLE */
 
 	/* Select clock source */
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+	freq_in = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SPI123);
+	LL_RCC_SetSPIClockSource(cfg->i2s_clk_sel);
+#else
 	LL_RCC_SetI2SClockSource(cfg->i2s_clk_sel);
+#endif
 
 	/*
 	 * The ratio between input clock (I2SxClk) and output
@@ -177,6 +186,7 @@ static int i2s_stm32_set_clock(const struct device *dev,
 	i2s_odd = (i2s_div & 0x1) ? 1 : 0;
 	i2s_div >>= 1;
 
+	LOG_DBG("freq_in: %d - bit_clk_freq: %d", freq_in, bit_clk_freq);
 	LOG_DBG("i2s_div: %d - i2s_odd: %d", i2s_div, i2s_odd);
 
 	LL_I2S_SetPrescalerLinear(cfg->i2s, i2s_div);
@@ -420,7 +430,7 @@ static int i2s_stm32_write(const struct device *dev, void *mem_block,
 
 	if (dev_data->tx.state != I2S_STATE_RUNNING &&
 	    dev_data->tx.state != I2S_STATE_READY) {
-		LOG_DBG("invalid state");
+		LOG_ERR("invalid state %d", dev_data->tx.state);
 		return -EIO;
 	}
 
@@ -541,7 +551,11 @@ static void dma_rx_callback(const struct device *dma_dev, void *arg,
 
 	ret = reload_dma(stream->dev_dma, stream->dma_channel,
 			&stream->dma_cfg,
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+			(void *) &(cfg->i2s->RXDR),
+#else
 			(void *)LL_SPI_DMA_GetRegAddr(cfg->i2s),
+#endif
 			stream->mem_block,
 			stream->cfg.block_size);
 	if (ret < 0) {
@@ -586,6 +600,7 @@ static void dma_tx_callback(const struct device *dma_dev, void *arg,
 	if (status != 0) {
 		ret = -EIO;
 		stream->state = I2S_STATE_ERROR;
+		LOG_ERR("error status: %d", status);
 		goto tx_disable;
 	}
 
@@ -615,6 +630,7 @@ static void dma_tx_callback(const struct device *dma_dev, void *arg,
 			stream->state = I2S_STATE_READY;
 		} else {
 			stream->state = I2S_STATE_ERROR;
+			LOG_ERR("queue get error: %d", ret);
 		}
 		goto tx_disable;
 	}
@@ -626,7 +642,11 @@ static void dma_tx_callback(const struct device *dma_dev, void *arg,
 	ret = reload_dma(stream->dev_dma, stream->dma_channel,
 			&stream->dma_cfg,
 			stream->mem_block,
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+			(void *) &(cfg->i2s->TXDR),
+#else
 			(void *)LL_SPI_DMA_GetRegAddr(cfg->i2s),
+#endif
 			stream->cfg.block_size);
 	if (ret < 0) {
 		LOG_DBG("Failed to start TX DMA transfer: %d", ret);
@@ -641,14 +661,17 @@ tx_disable:
 
 static uint32_t i2s_stm32_irq_count;
 static uint32_t i2s_stm32_irq_ovr_count;
-
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+static uint32_t i2s_stm32_irq_udr_count;
+static uint32_t i2s_stm32_irq_fre_count;
+#endif
 static void i2s_stm32_isr(const struct device *dev)
 {
 	const struct i2s_stm32_cfg *cfg = dev->config;
 	struct i2s_stm32_data *const dev_data = dev->data;
 	struct stream *stream = &dev_data->rx;
 
-	LOG_ERR("%s: err=%d", __func__, (int)LL_I2S_ReadReg(cfg->i2s, SR));
+	LOG_ERR("ISR: %s: err=%d", dev->name, (int)LL_I2S_ReadReg(cfg->i2s, SR));
 	stream->state = I2S_STATE_ERROR;
 
 	/* OVR error must be explicitly cleared */
@@ -656,6 +679,19 @@ static void i2s_stm32_isr(const struct device *dev)
 		i2s_stm32_irq_ovr_count++;
 		LL_I2S_ClearFlag_OVR(cfg->i2s);
 	}
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+	/* UDR error must be explicitly cleared */
+	if (LL_I2S_IsActiveFlag_UDR(cfg->i2s)) {
+		i2s_stm32_irq_udr_count++;
+		LL_I2S_ClearFlag_UDR(cfg->i2s);
+	}
+
+	/* FRE error must be explicitly cleared */
+	if (LL_I2S_IsActiveFlag_FRE(cfg->i2s)) {
+		i2s_stm32_irq_fre_count++;
+		LL_I2S_ClearFlag_FRE(cfg->i2s);
+	}
+#endif
 
 	i2s_stm32_irq_count++;
 }
@@ -728,7 +764,11 @@ static int rx_stream_start(struct stream *stream, const struct device *dev)
 
 	ret = start_dma(stream->dev_dma, stream->dma_channel,
 			&stream->dma_cfg,
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+			(void *) &(cfg->i2s->RXDR),
+#else
 			(void *)LL_SPI_DMA_GetRegAddr(cfg->i2s),
+#endif
 			stream->src_addr_increment, stream->mem_block,
 			stream->dst_addr_increment, stream->fifo_threshold,
 			stream->cfg.block_size);
@@ -738,8 +778,14 @@ static int rx_stream_start(struct stream *stream, const struct device *dev)
 	}
 
 	LL_I2S_EnableDMAReq_RX(cfg->i2s);
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+	LL_I2S_EnableIT_FRE(cfg->i2s);
+	LL_I2S_EnableIT_OVR(cfg->i2s);
+	LL_I2S_EnableIT_UDR(cfg->i2s);
+#else
 
 	LL_I2S_EnableIT_ERR(cfg->i2s);
+#endif
 	LL_I2S_Enable(cfg->i2s);
 
 	return 0;
@@ -773,7 +819,11 @@ static int tx_stream_start(struct stream *stream, const struct device *dev)
 	ret = start_dma(stream->dev_dma, stream->dma_channel,
 			&stream->dma_cfg,
 			stream->mem_block, stream->src_addr_increment,
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+			(void *) &(cfg->i2s->TXDR),
+#else
 			(void *)LL_SPI_DMA_GetRegAddr(cfg->i2s),
+#endif
 			stream->dst_addr_increment, stream->fifo_threshold,
 			stream->cfg.block_size);
 	if (ret < 0) {
@@ -783,7 +833,13 @@ static int tx_stream_start(struct stream *stream, const struct device *dev)
 
 	LL_I2S_EnableDMAReq_TX(cfg->i2s);
 
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+	LL_I2S_EnableIT_FRE(cfg->i2s);
+	LL_I2S_EnableIT_OVR(cfg->i2s);
+	LL_I2S_EnableIT_UDR(cfg->i2s);
+#else
 	LL_I2S_EnableIT_ERR(cfg->i2s);
+#endif
 	LL_I2S_Enable(cfg->i2s);
 
 	return 0;
@@ -794,8 +850,13 @@ static void rx_stream_disable(struct stream *stream, const struct device *dev)
 	const struct i2s_stm32_cfg *cfg = dev->config;
 
 	LL_I2S_DisableDMAReq_RX(cfg->i2s);
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+	LL_I2S_DisableIT_FRE(cfg->i2s);
+	LL_I2S_DisableIT_OVR(cfg->i2s);
+	LL_I2S_DisableIT_UDR(cfg->i2s);
+#else
 	LL_I2S_DisableIT_ERR(cfg->i2s);
-
+#endif
 	dma_stop(stream->dev_dma, stream->dma_channel);
 	if (stream->mem_block != NULL) {
 		k_mem_slab_free(stream->cfg.mem_slab, &stream->mem_block);
@@ -812,8 +873,13 @@ static void tx_stream_disable(struct stream *stream, const struct device *dev)
 	const struct i2s_stm32_cfg *cfg = dev->config;
 
 	LL_I2S_DisableDMAReq_TX(cfg->i2s);
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+	LL_I2S_DisableIT_FRE(cfg->i2s);
+	LL_I2S_DisableIT_OVR(cfg->i2s);
+	LL_I2S_DisableIT_UDR(cfg->i2s);
+#else
 	LL_I2S_DisableIT_ERR(cfg->i2s);
-
+#endif
 	dma_stop(stream->dev_dma, stream->dma_channel);
 	if (stream->mem_block != NULL) {
 		k_mem_slab_free(stream->cfg.mem_slab, &stream->mem_block);
