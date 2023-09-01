@@ -418,6 +418,34 @@
 			status = "disabled";
 		};
 
+		i2s1: i2s@40013000 {
+			compatible = "st,stm32-i2s";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x40013000 0x400>;
+			clocks = <&rcc STM32_CLOCK_BUS_APB2 0x00001000>,
+				 <&rcc STM32_SRC_PLL1_Q SPI123_SEL(0)>;
+			interrupts = <35 1>;
+			dmas = <&dmamux1 0 37 0x25480
+				&dmamux1 1 38 0x25440>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		i2s2: i2s@40003800 {
+			compatible = "st,stm32-i2s";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x40003800 0x400>;
+			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00004000>,
+				 <&rcc STM32_SRC_PLL1_Q SPI123_SEL(0)>;
+			interrupts = <36 1>;
+			dmas = <&dmamux1 2 39 0x25480
+				&dmamux1 3 40 0x25440>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
 		can {
 			compatible = "bosch,m_can-base";
 			#address-cells = <1>;
