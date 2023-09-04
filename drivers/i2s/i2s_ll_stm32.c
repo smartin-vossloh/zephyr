@@ -788,6 +788,10 @@ static int rx_stream_start(struct stream *stream, const struct device *dev)
 	LL_I2S_EnableIT_ERR(cfg->i2s);
 	LL_I2S_Enable(cfg->i2s);
 
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+	LL_SPI_StartMasterTransfer(cfg->i2s);
+#endif
+
 	return 0;
 }
 
@@ -832,12 +836,20 @@ static int tx_stream_start(struct stream *stream, const struct device *dev)
 	LL_I2S_EnableIT_ERR(cfg->i2s);
 	LL_I2S_Enable(cfg->i2s);
 
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+	LL_SPI_StartMasterTransfer(cfg->i2s);
+#endif
+
 	return 0;
 }
 
 static void rx_stream_disable(struct stream *stream, const struct device *dev)
 {
 	const struct i2s_stm32_cfg *cfg = dev->config;
+
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+	LL_SPI_SuspendMasterTransfer(cfg->i2s);
+#endif
 
 	LL_I2S_DisableDMAReq_RX(cfg->i2s);
 	LL_I2S_DisableIT_ERR(cfg->i2s);
@@ -856,6 +868,11 @@ static void rx_stream_disable(struct stream *stream, const struct device *dev)
 static void tx_stream_disable(struct stream *stream, const struct device *dev)
 {
 	const struct i2s_stm32_cfg *cfg = dev->config;
+
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+	LL_SPI_SuspendMasterTransfer(cfg->i2s);
+#endif
+
 
 	LL_I2S_DisableDMAReq_TX(cfg->i2s);
 	LL_I2S_DisableIT_ERR(cfg->i2s);
