@@ -22,4 +22,11 @@ config I2S_STM32_TX_BLOCK_COUNT
 	int "TX queue length"
 	default 4
 
+config I2S_STM32_FULL_DUPLEX
+	bool "Enable full-duplex mode support on I2S"
+	default n
+	help
+	  The board supports the I2S in full-duplex mode and can be set
+	  in full-duplex mode.
+
 endif # I2S_STM32
