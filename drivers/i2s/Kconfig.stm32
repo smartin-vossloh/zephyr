@@ -62,4 +62,11 @@ config I2S_STM32_PLLI2S_PLLR
 	  frequency is less than or equal to 192MHz.
 	  Allowed values: 2-7
 
+config I2S_STM32_FULL_DUPLEX
+	bool "Enable full-duplex mode support on I2S"
+	default n
+	help
+	  The board supports the I2S in full-duplex mode and can be set
+	  in full-duplex mode.
+
 endif # I2S_STM32
