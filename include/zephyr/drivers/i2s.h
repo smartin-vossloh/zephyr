@@ -182,6 +182,13 @@ typedef uint8_t i2s_opt_t;
 /** I2S driver is frame clock slave */
 #define I2S_OPT_FRAME_CLK_SLAVE             BIT(2)
 
+/** @brief Swap IO mode
+ *
+ * In swap IO mode, the SDO and SDI is swapped on I2S.
+ * This option depends of the mpu compatiblity.
+ */
+#define I2S_OPT_IO_SWAP                     BIT(3)
+
 /** @brief Loop back mode.
  *
  * In loop back mode RX input will be connected internally to TX output.
