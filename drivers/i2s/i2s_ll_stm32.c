@@ -570,7 +570,6 @@ static void dma_tx_callback(const struct device *dma_dev, void *arg,
 	const struct i2s_stm32_cfg *cfg = dev->config;
 	struct i2s_stm32_data *const dev_data = dev->data;
 	struct stream *stream = &dev_data->tx;
-	size_t mem_block_size;
 	int ret;
 
 	if (status != 0) {
@@ -583,8 +582,19 @@ static void dma_tx_callback(const struct device *dma_dev, void *arg,
 	__ASSERT_NO_MSG(stream->mem_block != NULL);
 
 	/* All block data sent */
+
+#ifdef CONFIG_I2S_STM32_TX_UNDERRUN_LAST_REPEAT
+	if (stream->tx_underrun == false) {
+		k_mem_slab_free(stream->cfg.mem_slab, &stream->last_mem_block);
+		stream->last_mem_block = stream->mem_block;
+		stream->last_mem_block_size = stream->mem_block_size;
+	}
+#else
 	k_mem_slab_free(stream->cfg.mem_slab, &stream->mem_block);
+#endif
+
 	stream->mem_block = NULL;
+	stream->mem_block_size = 0;
 
 	/* Stop transmission if there was an error */
 	if (stream->state == I2S_STATE_ERROR) {
@@ -600,7 +610,19 @@ static void dma_tx_callback(const struct device *dma_dev, void *arg,
 
 	/* Prepare to send the next data block */
 	ret = queue_get(&stream->mem_block_queue, &stream->mem_block,
-			&mem_block_size);
+			&stream->mem_block_size);
+
+#ifdef CONFIG_I2S_STM32_TX_UNDERRUN_LAST_REPEAT
+	if (ret == -ENOMEM) {
+		stream->mem_block = stream->last_mem_block;
+		stream->mem_block_size = stream->last_mem_block_size;
+		ret = 0;
+		stream->tx_underrun = true;
+	} else if (ret == 0) {
+		stream->tx_underrun = false;
+	}
+#endif
+
 	if (ret < 0) {
 		if (stream->state == I2S_STATE_STOPPING) {
 			stream->state = I2S_STATE_READY;
@@ -610,10 +632,16 @@ static void dma_tx_callback(const struct device *dma_dev, void *arg,
 		}
 		goto tx_disable;
 	}
-	k_sem_give(&stream->sem);
 
+#ifdef CONFIG_I2S_STM32_TX_UNDERRUN_LAST_REPEAT
+	if (stream->tx_underrun == false) {
+		k_sem_give(&stream->sem);
+	}
+#else
+	k_sem_give(&stream->sem);
+#endif
 	/* Assure cache coherency before DMA read operation */
-	DCACHE_CLEAN(stream->mem_block, mem_block_size);
+	DCACHE_CLEAN(stream->mem_block, stream->mem_block_size);
 
 	ret = reload_dma(stream->dev_dma, stream->dma_channel,
 			&stream->dma_cfg,
@@ -786,18 +814,46 @@ static int rx_stream_start_dma(struct stream *stream, const struct device *dev, 
 static int tx_stream_start_dma(struct stream *stream, const struct device *dev, bool full_duplex)
 {
 	const struct i2s_stm32_cfg *cfg = dev->config;
-	size_t mem_block_size;
 	int ret;
 
+#ifdef CONFIG_I2S_STM32_TX_UNDERRUN_LAST_REPEAT
+	/* Initialize  the block to send in underrun context*/
+	ret = k_mem_slab_alloc(stream->cfg.mem_slab, &stream->last_mem_block, K_NO_WAIT);
+	if (ret != 0) {
+		LOG_ERR("k_mem_slab_alloc error %d", ret);
+		return -ENOMEM;
+	}
+	stream->last_mem_block_size = stream->cfg.block_size;
+	memset(stream->last_mem_block, 0, stream->last_mem_block_size);
+	stream->tx_underrun = false;
+#endif
+
 	ret = queue_get(&stream->mem_block_queue, &stream->mem_block,
-			&mem_block_size);
+			&stream->mem_block_size);
+
+#ifdef CONFIG_I2S_STM32_TX_UNDERRUN_LAST_REPEAT
+	if (ret == -ENOMEM) {
+		stream->mem_block = stream->last_mem_block;
+		stream->mem_block_size = stream->last_mem_block_size;
+		ret = 0;
+		stream->tx_underrun = true;
+	}
+#endif
+
 	if (ret < 0) {
 		return ret;
 	}
+
+#ifdef CONFIG_I2S_STM32_TX_UNDERRUN_LAST_REPEAT
+	if(stream->tx_underrun == false) {
+		k_sem_give(&stream->sem);
+	}
+#else
 	k_sem_give(&stream->sem);
+#endif
 
 	/* Assure cache coherency before DMA read operation */
-	DCACHE_CLEAN(stream->mem_block, mem_block_size);
+	DCACHE_CLEAN(stream->mem_block, stream->mem_block_size);
 
 	if (stream->master) {
 		if (full_duplex) {
@@ -982,6 +1038,10 @@ static void tx_stream_disable(struct stream *stream, const struct device *dev)
 		stream->mem_block = NULL;
 	}
 
+#ifdef CONFIG_I2S_STM32_TX_UNDERRUN_LAST_REPEAT
+	k_mem_slab_free(stream->cfg.mem_slab, &stream->last_mem_block);
+#endif
+
 	LL_I2S_Disable(cfg->i2s);
 
 	active_dma_tx_channel[stream->dma_channel] = NULL;
@@ -1022,6 +1082,10 @@ static void full_duplex_stream_disable(const struct device *dev)
 		stream_tx->mem_block = NULL;
 	}
 
+#ifdef CONFIG_I2S_STM32_TX_UNDERRUN_LAST_REPEAT
+	k_mem_slab_free(stream_tx->cfg.mem_slab, &stream_tx->last_mem_block);
+#endif
+
 	LL_I2S_Disable(cfg->i2s);
 
 	active_dma_rx_channel[stream_rx->dma_channel] = NULL;
@@ -1051,6 +1115,10 @@ static void tx_queue_drop(struct stream *stream)
 		k_mem_slab_free(stream->cfg.mem_slab, &mem_block);
 		n++;
 	}
+
+#ifdef CONFIG_I2S_STM32_TX_UNDERRUN_LAST_REPEAT
+	k_mem_slab_free(stream->cfg.mem_slab, &stream->last_mem_block);
+#endif
 
 	for (; n > 0; n--) {
 		k_sem_give(&stream->sem);
@@ -1101,6 +1169,11 @@ static int i2s_stm32_configure_stream(struct stream *stream, const struct i2s_co
 	}
 
 	memcpy(&stream->cfg, i2s_cfg, sizeof(struct i2s_config));
+
+	stream->tx_underrun = false;
+	stream->last_mem_block = NULL;
+	stream->last_mem_block_size = 0;
+	stream->mem_block_size = 0;
 
 	return 0;
 }

@@ -76,4 +76,11 @@ config I2S_STM32_RX_OVERRUN_DROP
 	  Drop all data received while the IS2 driver is in overrun
 	  context.
 
+config I2S_STM32_TX_UNDERRUN_LAST_REPEAT
+	bool "Send last block again in underrun context"
+	default n
+	help
+	  Send again the last sent block while the I2S driver is in
+	  underrun context.
+
 endif # I2S_STM32

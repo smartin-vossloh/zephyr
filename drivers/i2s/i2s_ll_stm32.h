@@ -96,6 +96,11 @@ struct stream {
 	struct i2s_config cfg;
 	struct ring_buf mem_block_queue;
 	void *mem_block;
+	size_t mem_block_size;
+	void *last_mem_block;
+	size_t last_mem_block_size;
+	bool tx_underrun;
+
 	bool last_block;
 	bool master;
 	int (*stream_start)(struct stream *, const struct device *dev);
