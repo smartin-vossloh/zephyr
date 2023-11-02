@@ -69,4 +69,11 @@ config I2S_STM32_FULL_DUPLEX
 	  The board supports the I2S in full-duplex mode and can be set
 	  in full-duplex mode.
 
+config I2S_STM32_RX_OVERRUN_DROP
+	bool "Drop data received in overrun context"
+	default n
+	help
+	  Drop all data received while the IS2 driver is in overrun
+	  context.
+
 endif # I2S_STM32

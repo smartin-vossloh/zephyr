@@ -466,8 +466,11 @@ static void dma_rx_callback(const struct device *dma_dev, void *arg,
 	struct stream *stream = &dev_data->rx;
 	void *mblk_tmp;
 	int ret;
-
+#ifdef CONFIG_I2S_STM32_RX_OVERRUN_DROP
+	bool rx_overrun = false;
+#endif
 	if (status != 0) {
+		LOG_ERR("%d : error status %d", __LINE__, status);
 		ret = -EIO;
 		stream->state = I2S_STATE_ERROR;
 		goto rx_disable;
@@ -477,6 +480,7 @@ static void dma_rx_callback(const struct device *dma_dev, void *arg,
 
 	/* Stop reception if there was an error */
 	if (stream->state == I2S_STATE_ERROR) {
+		LOG_ERR("%d : error stream status", __LINE__);
 		goto rx_disable;
 	}
 
@@ -486,6 +490,7 @@ static void dma_rx_callback(const struct device *dma_dev, void *arg,
 	ret = k_mem_slab_alloc(stream->cfg.mem_slab, &stream->mem_block,
 			       K_NO_WAIT);
 	if (ret < 0) {
+		LOG_ERR("%d : error alloc %d", __LINE__, ret);
 		stream->state = I2S_STATE_ERROR;
 		goto rx_disable;
 	}
@@ -500,7 +505,7 @@ static void dma_rx_callback(const struct device *dma_dev, void *arg,
 			stream->mem_block,
 			stream->cfg.block_size);
 	if (ret < 0) {
-		LOG_DBG("Failed to start RX DMA transfer: %d", ret);
+		LOG_ERR("Failed to start RX DMA transfer: %d", ret);
 		goto rx_disable;
 	}
 
@@ -510,14 +515,32 @@ static void dma_rx_callback(const struct device *dma_dev, void *arg,
 	/* All block data received */
 	ret = queue_put(&stream->mem_block_queue, mblk_tmp,
 			stream->cfg.block_size);
+
+#ifdef CONFIG_I2S_STM32_RX_OVERRUN_DROP
+	if (ret == -ENOMEM) {
+		LOG_DBG("overrun detected");
+		k_mem_slab_free(stream->cfg.mem_slab, &mblk_tmp);
+		rx_overrun = true;
+		ret = 0;
+	}
+#endif
 	if (ret < 0) {
 		stream->state = I2S_STATE_ERROR;
 		goto rx_disable;
 	}
+
+#ifdef CONFIG_I2S_STM32_RX_OVERRUN_DROP
+	if(rx_overrun == false) {
+		k_sem_give(&stream->sem);
+	}
+#else
 	k_sem_give(&stream->sem);
+#endif
+
 
 	/* Stop reception if we were requested */
 	if (stream->state == I2S_STATE_STOPPING) {
+		LOG_DBG("%d : stopping stream", __LINE__);
 		stream->state = I2S_STATE_READY;
 		goto rx_disable;
 	}
