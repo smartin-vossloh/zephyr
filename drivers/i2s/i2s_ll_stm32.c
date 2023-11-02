@@ -345,25 +345,28 @@ static int i2s_stm32_read(const struct device *dev, void **mem_block,
 	int ret;
 
 	if (dev_data->rx.state == I2S_STATE_NOT_READY) {
-		LOG_DBG("invalid state");
+		LOG_ERR("device not ready");
 		return -EIO;
 	}
 
-	if (dev_data->rx.state != I2S_STATE_ERROR) {
-		ret = k_sem_take(&dev_data->rx.sem,
-				 SYS_TIMEOUT_MS(dev_data->rx.cfg.timeout));
-		if (ret < 0) {
-			return ret;
-		}
+	if (dev_data->rx.state == I2S_STATE_ERROR) {
+		LOG_ERR("Error status");
+		return -EIO;
+	}
+
+	ret = k_sem_take(&dev_data->rx.sem,
+			 SYS_TIMEOUT_MS(dev_data->rx.cfg.timeout));
+	if (ret < 0) {
+		return ret;
 	}
 
 	/* Get data from the beginning of RX queue */
 	ret = queue_get(&dev_data->rx.mem_block_queue, mem_block, size);
 	if (ret < 0) {
-		return -EIO;
+		LOG_ERR("error queue_get : %d", ret);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int i2s_stm32_write(const struct device *dev, void *mem_block,
