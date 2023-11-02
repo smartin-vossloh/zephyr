@@ -254,6 +254,11 @@ static int i2s_stm32_configure(const struct device *dev, enum i2s_dir dir,
 		LL_I2S_DisableMasterClock(cfg->i2s);
 	}
 
+	/* set I2S */
+	if (i2s_cfg->options & I2S_OPT_IO_SWAP) {
+		LL_I2S_EnableIOSwap(cfg->i2s);
+	}
+
 	/* set I2S Data Format */
 	if (i2s_cfg->word_size == 16U) {
 		LL_I2S_SetDataFormat(cfg->i2s, LL_I2S_DATAFORMAT_16B);
