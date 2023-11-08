@@ -705,7 +705,7 @@ static int i2s_stm32_initialize(const struct device *dev)
 	/* Enable I2S clock propagation */
 	ret = i2s_stm32_enable_clock(dev);
 	if (ret < 0) {
-		LOG_ERR("%s: clock enabling failed: %d",  __func__, ret);
+		LOG_ERR("clock enabling failed: %d",  ret);
 		return -EIO;
 	}
 
