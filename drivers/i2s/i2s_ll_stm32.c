@@ -529,7 +529,6 @@ static void dma_rx_callback(const struct device *dma_dev, void *arg,
 
 #ifdef CONFIG_I2S_STM32_RX_OVERRUN_DROP
 	if (ret == -ENOMEM) {
-		LOG_DBG("overrun detected");
 		k_mem_slab_free(stream->cfg.mem_slab, &mblk_tmp);
 		rx_overrun = true;
 		ret = 0;
