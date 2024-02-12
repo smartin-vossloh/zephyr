@@ -38,6 +38,27 @@ LOG_MODULE_REGISTER(i2s_ll_stm32);
 
 #define MODULO_INC(val, max) { val = (++val < max) ? val : 0; }
 
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+#define LL_I2S_DisableIT_ERR(reg)					\
+	do {								\
+		LL_I2S_DisableIT_FRE(reg);				\
+		LL_I2S_DisableIT_OVR(reg);				\
+		LL_I2S_DisableIT_UDR(reg);				\
+	} while (0)
+
+#define LL_I2S_EnableIT_ERR(reg)					\
+	do {								\
+		LL_I2S_EnableIT_FRE(reg);				\
+		LL_I2S_EnableIT_OVR(reg);				\
+		LL_I2S_EnableIT_UDR(reg);				\
+	} while (0)
+
+#define LL_SPI_DMA_GetRegAddr_(reg, dir)	(&((reg)->dir))
+#else
+#define LL_SPI_DMA_GetRegAddr_(reg, dir)	LL_SPI_DMA_GetRegAddr(reg)
+#endif
+
+
 static unsigned int div_round_closest(uint32_t dividend, uint32_t divisor)
 {
 	return (dividend + (divisor / 2U)) / divisor;
@@ -428,7 +449,7 @@ static int i2s_stm32_write(const struct device *dev, void *mem_block,
 
 	if (dev_data->tx.state != I2S_STATE_RUNNING &&
 	    dev_data->tx.state != I2S_STATE_READY) {
-		LOG_DBG("invalid state");
+		LOG_ERR("invalid state %d", dev_data->tx.state);
 		return -EIO;
 	}
 
@@ -549,7 +570,7 @@ static void dma_rx_callback(const struct device *dma_dev, void *arg,
 
 	ret = reload_dma(stream->dev_dma, stream->dma_channel,
 			&stream->dma_cfg,
-			(void *)LL_SPI_DMA_GetRegAddr(cfg->i2s),
+			(void *)LL_SPI_DMA_GetRegAddr_(cfg->i2s, RXDR),
 			stream->mem_block,
 			stream->cfg.block_size);
 	if (ret < 0) {
@@ -594,6 +615,7 @@ static void dma_tx_callback(const struct device *dma_dev, void *arg,
 	if (status < 0) {
 		ret = -EIO;
 		stream->state = I2S_STATE_ERROR;
+		LOG_ERR("error status: %d", status);
 		goto tx_disable;
 	}
 
@@ -623,6 +645,7 @@ static void dma_tx_callback(const struct device *dma_dev, void *arg,
 			stream->state = I2S_STATE_READY;
 		} else {
 			stream->state = I2S_STATE_ERROR;
+			LOG_ERR("queue get error: %d", ret);
 		}
 		goto tx_disable;
 	}
@@ -634,7 +657,7 @@ static void dma_tx_callback(const struct device *dma_dev, void *arg,
 	ret = reload_dma(stream->dev_dma, stream->dma_channel,
 			&stream->dma_cfg,
 			stream->mem_block,
-			(void *)LL_SPI_DMA_GetRegAddr(cfg->i2s),
+			(void *)LL_SPI_DMA_GetRegAddr_(cfg->i2s, TXDR),
 			stream->cfg.block_size);
 	if (ret < 0) {
 		LOG_DBG("Failed to start TX DMA transfer: %d", ret);
@@ -650,13 +673,18 @@ tx_disable:
 static uint32_t i2s_stm32_irq_count;
 static uint32_t i2s_stm32_irq_ovr_count;
 
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+static uint32_t i2s_stm32_irq_udr_count;
+static uint32_t i2s_stm32_irq_fre_count;
+#endif
+
 static void i2s_stm32_isr(const struct device *dev)
 {
 	const struct i2s_stm32_cfg *cfg = dev->config;
 	struct i2s_stm32_data *const dev_data = dev->data;
 	struct stream *stream = &dev_data->rx;
 
-	LOG_ERR("%s: err=%d", __func__, (int)LL_I2S_ReadReg(cfg->i2s, SR));
+	LOG_ERR("ISR: %s: err=%d", dev->name, (int)LL_I2S_ReadReg(cfg->i2s, SR));
 	stream->state = I2S_STATE_ERROR;
 
 	/* OVR error must be explicitly cleared */
@@ -664,6 +692,20 @@ static void i2s_stm32_isr(const struct device *dev)
 		i2s_stm32_irq_ovr_count++;
 		LL_I2S_ClearFlag_OVR(cfg->i2s);
 	}
+
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+	/* UDR error must be explicitly cleared */
+	if (LL_I2S_IsActiveFlag_UDR(cfg->i2s)) {
+		i2s_stm32_irq_udr_count++;
+		LL_I2S_ClearFlag_UDR(cfg->i2s);
+	}
+
+	/* FRE error must be explicitly cleared */
+	if (LL_I2S_IsActiveFlag_FRE(cfg->i2s)) {
+		i2s_stm32_irq_fre_count++;
+		LL_I2S_ClearFlag_FRE(cfg->i2s);
+	}
+#endif
 
 	i2s_stm32_irq_count++;
 }
@@ -736,7 +778,7 @@ static int rx_stream_start(struct stream *stream, const struct device *dev)
 
 	ret = start_dma(stream->dev_dma, stream->dma_channel,
 			&stream->dma_cfg,
-			(void *)LL_SPI_DMA_GetRegAddr(cfg->i2s),
+			(void *)LL_SPI_DMA_GetRegAddr_(cfg->i2s, RXDR),
 			stream->src_addr_increment, stream->mem_block,
 			stream->dst_addr_increment, stream->fifo_threshold,
 			stream->cfg.block_size);
@@ -781,7 +823,7 @@ static int tx_stream_start(struct stream *stream, const struct device *dev)
 	ret = start_dma(stream->dev_dma, stream->dma_channel,
 			&stream->dma_cfg,
 			stream->mem_block, stream->src_addr_increment,
-			(void *)LL_SPI_DMA_GetRegAddr(cfg->i2s),
+			(void *)LL_SPI_DMA_GetRegAddr_(cfg->i2s, TXDR),
 			stream->dst_addr_increment, stream->fifo_threshold,
 			stream->cfg.block_size);
 	if (ret < 0) {
