@@ -718,7 +718,10 @@ static void i2s_stm32_isr(const struct device *dev)
 	struct i2s_stm32_data *const dev_data = dev->data;
 	struct stream *stream = &dev_data->rx;
 
-	LOG_ERR("ISR: %s: err=%d", dev->name, (int)LL_I2S_ReadReg(cfg->i2s, SR));
+	LOG_ERR("ISR: %s: err=%d (0x%08x)",
+		dev->name,
+		(int)LL_I2S_ReadReg(cfg->i2s, SR),
+		(int)LL_I2S_ReadReg(cfg->i2s, SR));
 	stream->state = I2S_STATE_ERROR;
 
 #ifdef CONFIG_I2S_STM32_FULL_DUPLEX
