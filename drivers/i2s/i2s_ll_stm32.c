@@ -506,6 +506,8 @@ static void dma_rx_callback(const struct device *dma_dev, void *arg,
 		goto rx_disable;
 	}
 
+	DCACHE_INVALIDATE(stream->mem_block, stream->cfg.mem_slab->block_size);
+
 	ret = reload_dma(stream->dev_dma, stream->dma_channel,
 			&stream->dma_cfg,
 #ifdef CONFIG_SOC_SERIES_STM32H7X
