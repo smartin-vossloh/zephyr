@@ -506,8 +506,6 @@ static void dma_rx_callback(const struct device *dma_dev, void *arg,
 		goto rx_disable;
 	}
 
-	memset(stream->mem_block, 0x00, stream->cfg.mem_slab->block_size);
-
 	ret = reload_dma(stream->dev_dma, stream->dma_channel,
 			&stream->dma_cfg,
 #ifdef CONFIG_SOC_SERIES_STM32H7X
@@ -788,8 +786,6 @@ static int rx_stream_start_dma(struct stream *stream, const struct device *dev, 
 		return ret;
 	}
 
-	memset(stream->mem_block, 0x00, stream->cfg.mem_slab->block_size);
-
 	if (stream->master) {
 		if (full_duplex) {
 			LL_I2S_SetTransferMode(cfg->i2s, LL_I2S_MODE_MASTER_FULL_DUPLEX);
@@ -838,7 +834,7 @@ static int tx_stream_start_dma(struct stream *stream, const struct device *dev, 
 		return -ENOMEM;
 	}
 	stream->last_mem_block_size = stream->cfg.block_size;
-	memset(stream->last_mem_block, 0x00, stream->cfg.mem_slab->block_size);
+	memset(stream->last_mem_block, 0, stream->last_mem_block_size);
 	stream->tx_underrun = false;
 #endif
 
